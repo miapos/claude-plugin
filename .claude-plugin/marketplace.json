@@ -1,0 +1,16 @@
+{
+  "name": "miapos",
+  "owner": {
+    "name": "miaPOS (Finergy Tech)",
+    "email": "info@miapos.eu",
+    "url": "https://miapos.eu"
+  },
+  "description": "Official miaPOS plugins for Claude.",
+  "plugins": [
+    {
+      "name": "miapos",
+      "source": "./",
+      "description": "Add miaPOS instant-payment checkout (MIA, Moldova) to a shop or web app, with a live sandbox."
+    }
+  ]
+}

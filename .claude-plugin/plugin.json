@@ -1,0 +1,28 @@
+{
+  "name": "miapos",
+  "version": "0.1.0",
+  "description": "Add miaPOS instant-payment checkout (MIA, Moldova) to a shop or web app: step-by-step integration, callback signature checks and a live sandbox. Sandbox only — no real money moves.",
+  "author": {
+    "name": "Finergy Tech",
+    "email": "info@miapos.eu",
+    "url": "https://miapos.eu"
+  },
+  "homepage": "https://miapos.eu/en/docs/paypoints/ecommerce/",
+  "repository": "https://github.com/miapos/claude-plugin",
+  "license": "MIT",
+  "keywords": [
+    "payments",
+    "checkout",
+    "qr-payments",
+    "instant-payments",
+    "a2a",
+    "moldova",
+    "mdl",
+    "ecommerce",
+    "woocommerce",
+    "opencart",
+    "cs-cart",
+    "php",
+    "miapos"
+  ]
+}
