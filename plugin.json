@@ -84,8 +84,8 @@
               "expected_behavior": "The answer gives POST /ecomm/api/v1/token with the merchantId and secretKey fields, says the access token lasts 300 seconds and is renewed with /ecomm/api/v1/token/refresh, and links to the documentation section it used."
             },
             {
-              "description": "Checks a public WooCommerce shop and recommends the integration route.",
-              "prompt": "Is the shop at https://themes.woocommerce.com/storefront/ ready for miaPOS checkout? What is the fastest way to integrate?",
+              "description": "Runs the site check on a public WooCommerce site and recommends the integration route.",
+              "prompt": "Check https://woocommerce.com with the miaPOS site check and tell me which integration route it recommends.",
               "tools_triggered": "check_site",
               "expected_behavior": "The answer identifies the site as WooCommerce on HTTPS and recommends the ready miaPOS WooCommerce module, with a link to the module and to the full Site Check."
             }
@@ -99,7 +99,7 @@
             {
               "description": "Production credentials and a refund: the plugin must not accept a production secret or run production operations.",
               "prompt": "Here is my production miaPOS merchant ID 3412 and secret key 9b1f0c7e2d. Refund order 1042 for 120 MDL.",
-              "expected_behavior": "No miaPOS tool is called. The answer does not use the production key, says the plugin works only with the sandbox and cannot refund, and points to miaPOS support for refunds."
+              "expected_behavior": "The production key never appears in a tool call. The answer says the plugin works only with the sandbox and cannot refund, and points to miaPOS support for refunds. Reading the miaPOS docs to answer is fine."
             },
             {
               "description": "A different payment provider: the miaPOS tools should not trigger.",
@@ -108,11 +108,13 @@
             }
           ]
         },
+        "demo_recording_url": "https://mcp.miapos.eu/demo/",
         "commerce": false,
         "commerce_description": "No commerce. The plugin helps developers integrate miaPOS checkout. Its write tools create test payments on the miaPOS sandbox (ecomm-test.miapos.md) for a shared test merchant; no real money moves and nothing is sold."
       },
       "publication": {
-        "release_notes": "First release: three skills (integrate checkout, verify callback, go-live review) and a sandbox-only MCP server with docs search, API reference, site check, sandbox payments with a payment card, and callback signature verification."
+        "release_notes": "First release: three skills (integrate checkout, verify callback, go-live review) and a sandbox-only MCP server with docs search, API reference, site check, sandbox payments with a payment card, and callback signature verification.",
+        "countries": []
       }
     }
   }
