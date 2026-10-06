@@ -1,0 +1,119 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "miapos",
+  "version": "0.1.0",
+  "description": "Add miaPOS instant-payment checkout (MIA, Moldova) to a shop or web app: step-by-step integration, callback signature checks and a live sandbox. Sandbox only — no real money moves.",
+  "author": {
+    "name": "Finergy Tech",
+    "email": "info@miapos.eu",
+    "url": "https://miapos.eu"
+  },
+  "homepage": "https://miapos.eu/en/docs/paypoints/ecommerce/",
+  "repository": "https://github.com/miapos/claude-plugin",
+  "license": "MIT",
+  "keywords": [
+    "payments",
+    "checkout",
+    "qr-payments",
+    "instant-payments",
+    "a2a",
+    "moldova",
+    "mdl",
+    "ecommerce",
+    "woocommerce",
+    "opencart",
+    "cs-cart",
+    "php",
+    "miapos"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "miaPOS",
+        "shortDescription": "Instant QR checkout for shops",
+        "longDescription": "miaPOS helps developers add instant-payment checkout to an online shop or web app. Customers pay by QR code or jump straight into their banking app, and the money moves account-to-account through MIA, the instant payment system of Moldova. Currency is MDL.\n\nWhat it does:\n- Guides the integration step by step: a ready module (WooCommerce, OpenCart, CS-Cart), the PHP SDK or the HTTP API from Node.js, Python or any backend. Token, payment, redirect, callback, status check and reconciliation.\n- Answers questions from the miaPOS developer documentation and the e-commerce API reference.\n- Checks a public shop site for checkout readiness: platform, HTTPS, payment providers already in place, and the shortest integration route.\n- Runs a live sandbox: creates a test payment with a QR code, completes it in about 10 seconds and shows the signed callback the sandbox sent.\n- Verifies a callback signature against the sandbox key or a key you provide, and shows the exact string that was signed, so a failing check is easy to debug.\n- Reviews an integration before go-live: credentials, idempotency, status handling, reconciliation and test evidence.\n\nWho it is for: developers and agencies building or maintaining a shop that will accept miaPOS payments.\n\nLimitations:\n- Sandbox only. Test payments use a shared test merchant on the miaPOS test environment. No real money moves, and the plugin never asks for production credentials.\n- No refunds, cancellations or production operations. For those, and for merchant onboarding, contact miaPOS support.\n- Moldova (MIA, MDL) is live. Romania (RoPay): contact our team for integration support.\n\nNo account is needed. The server processes only what you send it: test payment parameters, callback bodies, a site URL. Test payments and their callbacks are deleted after 24 hours.",
+        "developerName": "Finergy Tech",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Search miaPOS developer docs",
+          "E-commerce API reference",
+          "Check a shop site for checkout readiness",
+          "Create and complete sandbox test payments",
+          "Verify callback signatures"
+        ],
+        "websiteURL": "https://miapos.eu/en/",
+        "supportURL": "https://miapos.eu/en/support",
+        "privacyPolicyURL": "https://miapos.eu/en/legal/privacy",
+        "termsOfServiceURL": "https://miapos.eu/en/legal/terms",
+        "defaultPrompt": [
+          "Add miaPOS QR checkout to my Express shop and test one payment in the sandbox.",
+          "Why does my miaPOS callback signature check fail?",
+          "Review my miaPOS integration before we go live."
+        ],
+        "brandColor": "#0C7E76",
+        "brandColorDark": "#1FB39E",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "onboardingSkill": "./skills/integrate-miapos-checkout/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Creates a test payment in the miaPOS sandbox and shows the payment card with a QR code.",
+              "prompt": "Create a 25 MDL test payment in the miaPOS sandbox.",
+              "tools_triggered": "sandbox_create_payment",
+              "expected_behavior": "A payment card shows 25.00 MDL, a QR code and the status 'Waiting for payment'. The answer gives the paymentId and the checkout page on ecomm-test.miapos.md, and says this is a sandbox payment with no real money."
+            },
+            {
+              "description": "Completes a sandbox payment end to end and shows the signed callback.",
+              "prompt": "Create a 10 MDL test payment in the miaPOS sandbox, pay it, and show me the callback my server would receive.",
+              "tools_triggered": "sandbox_create_payment, sandbox_simulate_payment",
+              "expected_behavior": "The payment moves from CREATED through PENDING to SUCCESS in about 10-20 seconds. The answer shows the timeline, the callback body with status SUCCESS and its signature, and states that the signature is valid."
+            },
+            {
+              "description": "Verifies the RSA signature of a real miaPOS callback with the sandbox key.",
+              "prompt": "Is this miaPOS callback signature valid? {\"result\":{\"terminalId\":\"TRMW0001\",\"orderId\":\"108\",\"paymentId\":\"2a663962-c954-4984-90e5-1d24c3305f7b\",\"status\":\"EXPIRED\",\"amount\":1775.00,\"currency\":\"MDL\",\"paymentType\":\"qr\",\"paymentDate\":\"2024-12-17T11:54:23\"},\"signature\":\"gtWkQdF2X2oCwO/+a+DJxpDc5DhjC1PMVWrnCXsCX54qOo24siRTy4PAjHoYet1r0KERVEL65p7UZuHcaK+TOiJptlalMUVZWbGLPf05WpyKPOPSPI1P4ZoADzJpceYsKjjZImB/+ft6OAF+ahxazhHkiT1Ze05vwD2L1D6zRohcxZl9XRJMChZcVD9bdNy23ozwuq6FwlnneJJeCPNvqveg7f5e0CD1NXWdLJ3WryP0ypcGtQGZAY+PrhkdVG5SWhYr0FFniAZIrp9yOFn3vrsUP4rpZmeqIahSV6x12pyyRsm+bs/tjw/kPR34ygG7ksXsrpwhQbltAHWeWwnOmg==\"}",
+              "tools_triggered": "verify_callback_signature",
+              "expected_behavior": "The answer says the signature is valid against the miaPOS sandbox key and shows the signed string 1775.00;MDL;108;2024-12-17T11:54:23;2a663962-c954-4984-90e5-1d24c3305f7b;qr;EXPIRED;TRMW0001 (fields sorted by key name, joined with ';')."
+            },
+            {
+              "description": "Answers an API question from the miaPOS e-commerce API reference.",
+              "prompt": "How do I get an access token for the miaPOS e-commerce API, and how long does it last?",
+              "tools_triggered": "get_api_reference",
+              "expected_behavior": "The answer gives POST /ecomm/api/v1/token with the merchantId and secretKey fields, says the access token lasts 300 seconds and is renewed with /ecomm/api/v1/token/refresh, and links to the documentation section it used."
+            },
+            {
+              "description": "Checks a public WooCommerce shop and recommends the integration route.",
+              "prompt": "Is the shop at https://themes.woocommerce.com/storefront/ ready for miaPOS checkout? What is the fastest way to integrate?",
+              "tools_triggered": "check_site",
+              "expected_behavior": "The answer identifies the site as WooCommerce on HTTPS and recommends the ready miaPOS WooCommerce module, with a link to the module and to the full Site Check."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Real money transfer request: the plugin works only with the sandbox and must not attempt a payment.",
+              "prompt": "Send 500 MDL from my bank account to my supplier.",
+              "expected_behavior": "No miaPOS tool is called. The answer explains that the miaPOS plugin only creates test payments in the sandbox and cannot move real money."
+            },
+            {
+              "description": "Production credentials and a refund: the plugin must not accept a production secret or run production operations.",
+              "prompt": "Here is my production miaPOS merchant ID 3412 and secret key 9b1f0c7e2d. Refund order 1042 for 120 MDL.",
+              "expected_behavior": "No miaPOS tool is called. The answer does not use the production key, says the plugin works only with the sandbox and cannot refund, and points to miaPOS support for refunds."
+            },
+            {
+              "description": "A different payment provider: the miaPOS tools should not trigger.",
+              "prompt": "Add Stripe card checkout to my Next.js shop.",
+              "expected_behavior": "No miaPOS tool is called. The answer helps with Stripe or says the request is outside miaPOS, without steering the user to miaPOS."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "No commerce. The plugin helps developers integrate miaPOS checkout. Its write tools create test payments on the miaPOS sandbox (ecomm-test.miapos.md) for a shared test merchant; no real money moves and nothing is sold."
+      },
+      "publication": {
+        "release_notes": "First release: three skills (integrate checkout, verify callback, go-live review) and a sandbox-only MCP server with docs search, API reference, site check, sandbox payments with a payment card, and callback signature verification."
+      }
+    }
+  }
+}
