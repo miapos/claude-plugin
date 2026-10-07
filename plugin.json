@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "miapos",
-  "version": "0.1.0",
-  "description": "Add miaPOS instant-payment checkout (MIA, Moldova) to a shop or web app: step-by-step integration, callback signature checks and a live sandbox. Sandbox only — no real money moves.",
+  "version": "0.1.1",
+  "description": "Add miaPOS instant-payment checkout (MIA, Moldova) to a shop or web app: integration guidance, API reference, callback signature checks and end-to-end tests on the miaPOS test environment. The plugin never moves real money.",
   "author": {
     "name": "Finergy Tech",
     "email": "info@miapos.eu",
@@ -31,14 +31,14 @@
       "interface": {
         "displayName": "miaPOS",
         "shortDescription": "Instant QR checkout for shops",
-        "longDescription": "miaPOS helps developers add instant-payment checkout to an online shop or web app. Customers pay by QR code or jump straight into their banking app, and the money moves account-to-account through MIA, the instant payment system of Moldova. Currency is MDL.\n\nWhat it does:\n- Guides the integration step by step: a ready module (WooCommerce, OpenCart, CS-Cart), the PHP SDK or the HTTP API from Node.js, Python or any backend. Token, payment, redirect, callback, status check and reconciliation.\n- Answers questions from the miaPOS developer documentation and the e-commerce API reference.\n- Checks a public shop site for checkout readiness: platform, HTTPS, payment providers already in place, and the shortest integration route.\n- Runs a live sandbox: creates a test payment with a QR code, completes it in about 10 seconds and shows the signed callback the sandbox sent.\n- Verifies a callback signature against the sandbox key or a key you provide, and shows the exact string that was signed, so a failing check is easy to debug.\n- Reviews an integration before go-live: credentials, idempotency, status handling, reconciliation and test evidence.\n\nWho it is for: developers and agencies building or maintaining a shop that will accept miaPOS payments.\n\nLimitations:\n- Sandbox only. Test payments use a shared test merchant on the miaPOS test environment. No real money moves, and the plugin never asks for production credentials.\n- No refunds, cancellations or production operations. For those, and for merchant onboarding, contact miaPOS support.\n- Moldova (MIA, MDL) is live. Romania (RoPay): contact our team for integration support.\n\nNo account is needed. The server processes only what you send it: test payment parameters, callback bodies, a site URL. Test payments and their callbacks are deleted after 24 hours.",
+        "longDescription": "miaPOS helps developers add instant-payment checkout to an online shop or web app. Customers pay by QR code or jump straight into their banking app, and the money moves account-to-account through MIA, the instant payment system of Moldova. Currency is MDL.\n\nWhat it does:\n- Guides the integration step by step: a ready module (WooCommerce, OpenCart, CS-Cart), the PHP SDK or the HTTP API from Node.js, Python or any backend. Token, payment, redirect, callback, status check and reconciliation.\n- Answers questions from the miaPOS developer documentation and the e-commerce API reference.\n- Checks a public shop site for checkout readiness: platform, HTTPS, payment providers already in place, and the shortest integration route.\n- Tests the integration end to end on the miaPOS test environment: creates a test payment with a QR code, simulates the buyer paying it (about 10 seconds) and shows the signed callback that was sent.\n- Verifies a callback signature against the test environment key or a key you provide, and shows the exact string that was signed, so a failing check is easy to debug.\n- Reviews an integration before go-live: credentials, idempotency, status handling, reconciliation and test evidence.\n\nWho it is for: developers and agencies building or maintaining a shop that will accept miaPOS payments.\n\nLimitations:\n- Payment tools work only on the miaPOS test environment, with a shared test merchant. No real money moves, and the plugin never asks for production credentials. The code it helps you write runs in production once your shop has its own merchant credentials from its bank.\n- No refunds, cancellations or production operations. For those, and for merchant onboarding, contact miaPOS support.\n- Moldova (MIA, MDL) is live. Romania (RoPay): contact our team for integration support.\n\nNo account is needed. The server processes only what you send it: test payment parameters, callback bodies, a site URL. Test payments and their callbacks are deleted after 24 hours.",
         "developerName": "Finergy Tech",
         "category": "Developer Tools",
         "capabilities": [
           "Search miaPOS developer docs",
           "E-commerce API reference",
           "Check a shop site for checkout readiness",
-          "Create and complete sandbox test payments",
+          "Create test payments and simulate the buyer paying",
           "Verify callback signatures"
         ],
         "websiteURL": "https://miapos.eu/en/",
@@ -110,10 +110,10 @@
         },
         "demo_recording_url": "https://mcp.miapos.eu/demo/",
         "commerce": false,
-        "commerce_description": "No commerce. The plugin helps developers integrate miaPOS checkout. Its write tools create test payments on the miaPOS sandbox (ecomm-test.miapos.md) for a shared test merchant; no real money moves and nothing is sold."
+        "commerce_description": "No commerce. The plugin helps developers integrate miaPOS checkout. Its two write tools create a test payment and simulate the buyer paying it on the miaPOS test environment (ecomm-test.miapos.md), for a shared test merchant; no real money moves and nothing is sold."
       },
       "publication": {
-        "release_notes": "First release: three skills (integrate checkout, verify callback, go-live review) and a sandbox-only MCP server with docs search, API reference, site check, sandbox payments with a payment card, and callback signature verification.",
+        "release_notes": "First release: three skills (integrate checkout, verify callback, go-live review) and an MCP server with docs search, API reference, site check, test payments on the miaPOS test environment with a payment card, and callback signature verification.",
         "countries": []
       }
     }

@@ -5,12 +5,12 @@
     "email": "info@miapos.eu",
     "url": "https://miapos.eu"
   },
-  "description": "Official miaPOS plugins for Claude.",
+  "description": "miaPOS plugins for Claude, published by Finergy Tech.",
   "plugins": [
     {
       "name": "miapos",
       "source": "./",
-      "description": "Add miaPOS instant-payment checkout (MIA, Moldova) to a shop or web app, with a live sandbox."
+      "description": "Add miaPOS instant-payment checkout (MIA, Moldova) to a shop or web app, with end-to-end tests on the miaPOS test environment."
     }
   ]
 }

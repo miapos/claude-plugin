@@ -2,7 +2,7 @@
 
 Add **miaPOS checkout** to an online shop or web app with Claude. Customers pay by QR code or jump straight into their banking app. The money moves account-to-account through **MIA**, Moldova's instant payment system.
 
-The plugin knows the miaPOS e-commerce API and its pitfalls, and comes with a **live sandbox**. Claude can create a test payment, watch it complete and check a callback signature for you. **Sandbox only: the plugin never moves real money.**
+The plugin knows the miaPOS e-commerce API and its pitfalls, and can test your integration end to end on the **miaPOS test environment**. Claude can create a test payment, simulate the buyer paying it and check the callback signature for you. **The plugin never moves real money:** its payment tools work only on the test environment.
 
 | Market | Status |
 |---|---|
@@ -33,7 +33,7 @@ Then just ask, for example:
 | `verify-miapos-callback` | The exact signature algorithm, a real test vector, and handlers in Node.js, Python and PHP |
 | `miapos-go-live` | Pre-launch audit of an integration: credentials, idempotency, reconciliation, test evidence |
 
-**MCP server** `https://mcp.miapos.eu/mcp`. No login, sandbox only.
+**MCP server** `https://mcp.miapos.eu/mcp`. No login. Payment tools work only on the test environment.
 
 | Tool | What it does |
 |---|---|
@@ -41,7 +41,7 @@ Then just ask, for example:
 | `get_api_reference` | Endpoints, fields, statuses and errors as observed on the live sandbox |
 | `check_site` | Check a shop's site for checkout readiness (HTTPS, platform, plugin fit) |
 | `sandbox_create_payment` | Create a test payment and get its checkout page and QR |
-| `sandbox_simulate_payment` | Make the sandbox complete the payment (about 10 s) |
+| `sandbox_simulate_payment` | Simulate the buyer paying the test payment (about 10 s). Hosts ask before running it: the final status cannot be undone |
 | `sandbox_payment_status` | Current status, plus the signed callback the sandbox sent |
 | `verify_callback_signature` | Check a callback body and signature against the sandbox key, or a key you provide |
 
