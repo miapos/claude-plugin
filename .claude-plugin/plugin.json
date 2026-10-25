@@ -1,6 +1,6 @@
 {
   "name": "miapos",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Add miaPOS instant-payment checkout (MIA, Moldova) to a shop or web app: integration guidance, API reference, callback signature checks and end-to-end tests on the miaPOS test environment. The plugin never moves real money.",
   "author": {
     "name": "Finergy Tech",
