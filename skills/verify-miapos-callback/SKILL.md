@@ -14,7 +14,7 @@ miaPOS POSTs the payment result to your `callbackUrl`:
   "signature": "base64…" }
 ```
 
-The callback is sent **once** (60 s timeout, **no retries**), so the handler must be correct and fast. Your reconciliation job (skill **integrate-miapos-checkout**) covers callbacks that never arrive.
+Any 2xx answer ends delivery. A non-2xx answer, a network error or no answer within 60 s is retried, up to 9 attempts over about 45 h (30 s, 2 min, 10 min, 30 min, 2 h, 6 h, 12 h, 24 h apart). A retry carries the **same body and the same signature** as the first attempt. So the handler must be idempotent, and it must answer 200 for a callback it has already applied. Your reconciliation job (skill **integrate-miapos-checkout**) covers callbacks that never get through.
 
 ## The algorithm (exact)
 
@@ -111,6 +111,6 @@ The SDK fetches the public key itself on every call. In high-traffic handlers, c
 1. Parse the JSON. Reject it if `result` or `signature` is missing (400).
 2. Verify the signature. If it is invalid, return 400 and log it **without** the full body.
 3. Load the order by `result.paymentId`, not by `orderId`. Check that `amount` and `currency` match the order.
-4. Apply the status **idempotently**: the same `paymentId` + `status` twice must not double-fulfil. Never downgrade a final status.
-5. Answer **200 quickly**. Do slow work (emails, fulfilment) afterwards or in a queue.
+4. Apply the status **idempotently**: the same `paymentId` + `status` twice must not double-fulfil, and a repeat is answered **200** like the first one. Never downgrade a final status.
+5. Answer **200 quickly**. Do slow work (emails, fulfilment) afterwards or in a queue. An error or timeout makes miaPOS send the callback again later.
 6. Optional defence in depth: confirm with `GET /ecomm/api/v1/payment/{paymentId}` before fulfilment.
