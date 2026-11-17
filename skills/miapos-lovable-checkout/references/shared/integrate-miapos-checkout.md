@@ -1,0 +1,113 @@
+<!-- Generated from skills/integrate-miapos-checkout/SKILL.md by scripts/sync-shared.mjs. Do not edit this copy. -->
+
+# Integrate miaPOS checkout
+
+miaPOS e-commerce lets a shop take payments through **MIA**, Moldova's instant payment system. The buyer scans a QR code, or on a phone jumps straight into their banking app. The money moves account-to-account in seconds. Currency is **MDL only**.
+
+The flow is always the same, whatever the stack:
+
+```
+your backend ──POST /ecomm/api/v1/token──▶ accessToken (5 min)
+your backend ──POST /ecomm/api/v1/pay────▶ { paymentId, checkoutPage }
+buyer's browser ──redirect──▶ checkoutPage  (QR / bank-app jump)
+miaPOS ──POST callbackUrl (signed, retried until 2xx)──▶ your backend
+buyer's browser ◀──redirect── successUrl / failUrl
+your backend ──GET /ecomm/api/v1/payment/{paymentId}──▶ final status   ← the source of truth
+```
+
+## Step 0 — scope check (do this first)
+
+- **Romania (RoPay, RON):** online checkout through miaPOS in Romania is not self-serve. **Do not write integration code for it.** Tell the user to contact the miaPOS team for integration support: https://miapos.eu/en/support?utm_source=claude-plugin&utm_campaign=ro
+- **Any currency other than MDL:** the sandbox accepts the request, but the payment ends in `FAILED`. Stop and explain.
+- **Refunds, cancellations, recurring billing, request-to-pay to a phone number** are outside this skill. Point the user to https://miapos.eu/en/support.
+
+## Step 1 — pick the path
+
+| The shop runs on | Use | Where |
+|---|---|---|
+| WooCommerce | ready module | https://github.com/miapos/mia-pay-gateway-for-woocommerce |
+| OpenCart 3 | ready module | https://github.com/miapos/mia-pay-gateway-for-opencart |
+| CS-Cart | ready module | https://github.com/miapos/mia-pay-gateway-for-cscart |
+| Any PHP | SDK | `composer require miapos/mia-pos-sdk` — https://github.com/miapos/mia-pay-ecomm-php-sdk |
+| Anything else (Node, Python, Go, Java, .NET, Laravel without the SDK…) | HTTP API directly | `references/shared/api.md`, `references/shared/examples.md` |
+
+With a ready module the work is configuration: merchant ID, secret key, terminal ID, base URL, the order-status mapping, then a sandbox test. Turn on **Direct redirect** in the module settings: on phones the checkout page then jumps straight into the bank app.
+
+## Step 2 — credentials and environments
+
+| | Sandbox | Production |
+|---|---|---|
+| Base URL | `https://ecomm-test.miapos.md` | given by the merchant's bank / miaPOS at onboarding (one per bank) |
+| Merchant ID / secret / terminal | shared public test merchant — use the `sandbox_*` tools of the miaPOS MCP server, or ask the user for their own sandbox credentials | issued at onboarding |
+| Money | none — the sandbox pays itself | real |
+
+Rules:
+- The **secret key lives on the server only**: env var or secret store, never the browser, the repo or logs.
+- Never ship sandbox credentials to production, and never guess a production base URL.
+
+## Step 3 — implement (HTTP API path)
+
+Read `references/shared/api.md` for exact fields and errors and `references/shared/examples.md` for ready-to-adapt code. The essentials:
+
+1. **Token.** `POST /ecomm/api/v1/token` with `{merchantId, secretKey}` returns an `accessToken` valid for **300 s**. Cache it and renew about 30 s before expiry, either with a new token call or with `POST /ecomm/api/v1/token/refresh {refreshToken}`.
+2. **Create the payment.** `POST /ecomm/api/v1/pay`, Bearer token, with:
+   - required: `terminalId, orderId, amount, currency: "MDL", payDescription`;
+   - also send: `paymentType: "qr"`, `language` (`ro`/`ru`/`en`), `callbackUrl`, `successUrl`, `failUrl`, `directRedirect: true`.
+   - **Store `paymentId` on the order.** `orderId` is *not* unique on the miaPOS side: a retry with the same `orderId` creates a new payment. Match everything by `paymentId`.
+   - Put your own order reference into `successUrl` / `failUrl` (e.g. `?order=123`). miaPOS redirects to them **as-is** and appends nothing.
+   - Do not send `clientPhone`: it is deprecated.
+3. **Redirect** the buyer to `checkoutPage`.
+4. **Callback.** miaPOS POSTs `{result, signature}` to `callbackUrl` when the payment reaches a final status. Any 2xx answer ends delivery. A non-2xx answer, a network error or no answer within 60 s is retried: up to 9 attempts in total, 30 s, 2 min, 10 min, 30 min, 2 h, 6 h, 12 h and 24 h apart (about 45 h). Every retry carries the same bytes and the same signature as the first attempt. After the 9th failure miaPOS stops trying.
+   - Verify the signature before trusting it (`references/shared/verify-miapos-callback.md`).
+   - Answer 200 fast and process idempotently: the same callback can arrive more than once, and a retry can arrive hours after your status poll already settled the order.
+   - Reject a callback with a bad signature (400), but never answer non-2xx for a callback you have already applied. Otherwise miaPOS keeps resending it for two days.
+5. **Return URLs.** When the buyer lands on `successUrl` or `failUrl`, **always call `GET /ecomm/api/v1/payment/{paymentId}`**. Never mark an order paid just because the browser reached `successUrl`.
+6. **Reconcile.** Retries do not make the callback a source of truth. Your endpoint can be down for longer than the retry window, misconfigured or behind a firewall. After the last attempt nothing more arrives, and the order stays unpaid although the buyer has paid. So run a job every 1–2 min for orders whose payment is `CREATED` or `PENDING`, and poll the status until it is final. The QR lives about 5 min by default (a per-terminal setting), after that `EXPIRED`.
+
+### Statuses
+
+| Status | Meaning | Final? | Shop action |
+|---|---|---|---|
+| `CREATED` | payment registered, buyer has not paid yet | no | wait |
+| `PENDING` | buyer confirmed, bank is processing | no | wait, keep the order reserved |
+| `SUCCESS` | money transferred | **yes** | mark paid, fulfil |
+| `FAILED` | payment failed | yes | mark failed, allow retry |
+| `DECLINED` | declined by payer or bank | yes | mark failed, allow retry |
+| `EXPIRED` | QR timed out without payment | yes | mark expired, allow retry |
+
+On `SUCCESS` the status also carries `swiftMessageId` and `swiftPayerBank`. Store them for reconciliation.
+
+`paymentDate` is **Chișinău local time without a timezone offset** (`2026-10-05T22:13:42`). Do not parse it as UTC.
+
+## Step 4 — test in the sandbox
+
+If the miaPOS MCP tools are available, use them:
+
+1. `sandbox_create_payment` creates a test payment and returns `paymentId` and `checkoutPage`.
+2. `sandbox_simulate_payment` starts the payment on the checkout page the way the buyer's browser does. The sandbox then pays by itself: `PENDING` after about 5 s, `SUCCESS` after about 10 s.
+3. `sandbox_payment_status` shows the current status and the callback the sandbox sent, if a callback inbox was used.
+4. `verify_callback_signature` checks a callback body plus its signature.
+
+Without the tools, do the same by hand: create a payment against `https://ecomm-test.miapos.md`, then open `checkoutPage` in a browser and poll the status. To start it without a browser, send the same form POST the page sends, to the `checkoutPage` address without its query string:
+
+```bash
+curl -d "paymentId=<paymentId>" https://ecomm-test.miapos.md/checkout
+```
+
+Do not script a plain GET of `checkoutPage` to pay: a GET only loads the page (link previews and crawlers fetch it too), and the payment starts from the page's own POST. The sandbox cannot reach `localhost`, so use a public tunnel for `callbackUrl` or rely on polling.
+
+Test at least these cases:
+- one successful payment;
+- one abandoned payment that reaches `EXPIRED` after the TTL;
+- the success page reached with an unpaid payment, which must **not** mark the order paid;
+- a replayed callback, which must be processed once and still answered 200;
+- a callback with a tampered amount, which must be rejected.
+
+## Step 5 — before going live
+
+Run `references/shared/miapos-go-live.md`.
+
+## Help
+
+- Docs: https://miapos.eu/en/docs/ · API reference: https://miapos.eu/en/docs/api/
+- Support: https://miapos.eu/en/support

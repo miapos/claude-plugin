@@ -23,6 +23,15 @@ Then just ask, for example:
 - "Why does my miaPOS callback signature check fail?"
 - "Review my miaPOS integration before we go live."
 
+## Use it in Lovable
+
+The skill `miapos-lovable-checkout` teaches Lovable to add miaPOS checkout to an app: server code, a payments table, a signed callback route, a reconciliation job and a payments admin page, on the test environment first.
+
+1. In Lovable, open **Account settings → Personal skills → Import skills** (or, as a workspace admin, **Workspace settings → Skills → Add → Import from GitHub**) and paste:
+   `https://github.com/miapos/claude-plugin/tree/main/skills/miapos-lovable-checkout`
+2. Optional: add `https://mcp.miapos.eu/mcp` as a custom MCP chat connector, with no authentication. Lovable can then look up the API and check callback signatures while it builds.
+3. Ask: "Add payment with miaPOS to my app." Lovable asks for four secrets through its **Add secret** form.
+
 ## What's inside
 
 **Skills**
@@ -32,6 +41,7 @@ Then just ask, for example:
 | `integrate-miapos-checkout` | Choose a ready module (WooCommerce, OpenCart, CS-Cart), the PHP SDK or the HTTP API, then implement token → payment → redirect → callback → status → reconciliation |
 | `verify-miapos-callback` | The exact signature algorithm, a real test vector, and handlers in Node.js, Python and PHP |
 | `miapos-go-live` | Pre-launch audit of an integration: credentials, idempotency, reconciliation, test evidence |
+| `miapos-lovable-checkout` | The same checkout in a Lovable app: secrets, payments table, server functions, the checkout widget, callback route, scheduled reconciliation, admin page. Its `references/shared/` is generated from the three skills above by `scripts/sync-shared.mjs` |
 
 **MCP server** `https://mcp.miapos.eu/mcp`. No login. Payment tools work only on the test environment.
 
