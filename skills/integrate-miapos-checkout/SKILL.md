@@ -86,11 +86,17 @@ On `SUCCESS` the status also carries `swiftMessageId` and `swiftPayerBank`. Stor
 If the miaPOS MCP tools are available, use them:
 
 1. `sandbox_create_payment` creates a test payment and returns `paymentId` and `checkoutPage`.
-2. `sandbox_simulate_payment` opens the checkout page. The sandbox pays by itself: `PENDING` after about 5 s, `SUCCESS` after about 10 s.
+2. `sandbox_simulate_payment` starts the payment on the checkout page the way the buyer's browser does. The sandbox then pays by itself: `PENDING` after about 5 s, `SUCCESS` after about 10 s.
 3. `sandbox_payment_status` shows the current status and the callback the sandbox sent, if a callback inbox was used.
 4. `verify_callback_signature` checks a callback body plus its signature.
 
-Without the tools, do the same by hand: create a payment against `https://ecomm-test.miapos.md`, then `curl` the `checkoutPage` URL (no browser needed) and poll the status. The sandbox cannot reach `localhost`, so use a public tunnel for `callbackUrl` or rely on polling.
+Without the tools, do the same by hand: create a payment against `https://ecomm-test.miapos.md`, then open `checkoutPage` in a browser and poll the status. To start it without a browser, send the same form POST the page sends, to the `checkoutPage` address without its query string:
+
+```bash
+curl -d "paymentId=<paymentId>" https://ecomm-test.miapos.md/checkout
+```
+
+Do not script a plain GET of `checkoutPage` to pay: a GET only loads the page (link previews and crawlers fetch it too), and the payment starts from the page's own POST. The sandbox cannot reach `localhost`, so use a public tunnel for `callbackUrl` or rely on polling.
 
 Test at least these cases:
 - one successful payment;
