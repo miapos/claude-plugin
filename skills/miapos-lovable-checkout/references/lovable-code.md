@@ -66,6 +66,9 @@ create index if not exists miapos_payments_open_idx on public.miapos_payments (c
   where status in ('CREATED', 'PENDING');
 create index if not exists miapos_payments_review_idx on public.miapos_payments (updated_at desc)
   where review_reason is not null;
+-- One payable payment per order and amount: two "Pay" clicks at once cannot both record one.
+create unique index if not exists miapos_payments_one_open_idx on public.miapos_payments (order_id, environment, amount)
+  where status in ('CREATED', 'PENDING');
 
 alter table public.miapos_payments enable row level security;   -- no policies: server code only
 
@@ -160,7 +163,7 @@ grant execute on function public.miapos_apply_status(uuid, text, numeric, text, 
 - `paid_twice`: a second payment of an already paid order succeeded. The buyer has paid twice, and the refund goes through the Merchant Portal.
 - `late_success`: miaPOS reported success after a failure or expiry was stored. The order goes to `review`.
 
-The trigger checks the database role of the caller. A `security definer` function of the app that updates `orders` runs as its owner and is not checked, so keep payment fields out of such functions.
+The trigger checks the database role of the caller. Server code that creates orders or recomputes a total must use the service-role client (`admin`): a server function that uses the signed-in user's client runs as `authenticated` and is refused like the browser. A `security definer` function of the app that updates `orders` runs as its owner and is not checked, so keep payment fields out of such functions.
 
 ## Server module
 
@@ -367,8 +370,9 @@ import { openPayment, syncPayment } from "./miapos-orders.server";
 const REUSE_MS = 4 * 60_000;   // a QR lives about 5 min from its first open: check an older payment before reuse
 
 /**
- * `origin` is the app's own address, taken on the server from the incoming request
- * (`new URL(request.url).origin`), never from a value the browser sends.
+ * `origin` is the app's own address, never a value the browser sends. In a TanStack Start server
+ * function: `new URL(request.url).origin`. In an Edge Function that URL is the backend's host, so
+ * use an `APP_URL` secret with the published address there.
  * If the app has sign-in, load the order together with the caller's user id and refuse otherwise.
  */
 export async function createMiaposPaymentForOrder(admin: any, orderId: string, language: "ro" | "ru" | "en", origin: string) {
@@ -399,12 +403,15 @@ export async function createMiaposPaymentForOrder(admin: any, orderId: string, l
     payment_id: p.paymentId, order_id: order.id, environment: miaposEnvironment(),
     amount: total, currency: "MDL", checkout_page: p.checkoutPage,
   });
+  if (insertError?.code === "23505") {
+    // A second request (a double click, two tabs) recorded its payment first: hand out that one.
+    // Ours is never shown, and a payment nobody opens cannot be paid.
+    const winner = await openPayment(admin, order.id, total);
+    if (winner) return handOut(winner);
+  }
   if (insertError) throw new Error(`Payment not recorded: ${insertError.message}`);   // no row, no redirect
   await admin.from("orders").update({ payment_status: "pending" }).eq("id", order.id).eq("payment_status", "unpaid");
-
-  // Two requests at once (a double click, two tabs) can both get here. Both hand out the oldest open
-  // payment, so the buyer only ever sees one. The other is never opened, and an unopened payment cannot be paid.
-  return handOut((await openPayment(admin, order.id, total)) ?? { payment_id: p.paymentId, checkout_page: p.checkoutPage });
+  return handOut({ payment_id: p.paymentId, checkout_page: p.checkoutPage });
 }
 ```
 
@@ -463,16 +470,35 @@ import { syncPayment } from "./miapos-orders.server";
 
 const BATCH = 8;            // the job's call times out after a few seconds
 const TIMEOUT_MS = 4_000;   // shorter than the usual 30 s on purpose: a slow check is retried next run
+const MIN = 60_000;
+
+/**
+ * Up to BATCH payments to check, most urgent first: payments being paid, then fresh ones, then the ones
+ * nobody opened. Those never expire, so they are checked every 10 minutes and cannot crowd out the rest.
+ */
+export async function duePayments(admin: any): Promise<string[]> {
+  const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
+  const passes = [
+    { status: "PENDING", since: ago(2 * 24 * 60 * MIN), recheck: ago(50_000) },
+    { status: "CREATED", since: ago(15 * MIN), recheck: ago(50_000) },
+    { status: "CREATED", since: ago(2 * 24 * 60 * MIN), recheck: ago(10 * MIN) },
+  ];
+  const ids: string[] = [];
+  for (const pass of passes) {
+    if (ids.length >= BATCH) break;
+    const { data, error } = await admin.from("miapos_payments").select("payment_id")
+      .eq("status", pass.status).eq("environment", miaposEnvironment()).gte("created_at", pass.since)
+      .or(`checked_at.is.null,checked_at.lt.${pass.recheck}`)
+      .order("checked_at", { ascending: true, nullsFirst: true }).limit(BATCH);
+    if (error) throw new Error(error.message);
+    for (const r of data ?? []) if (ids.length < BATCH && !ids.includes(r.payment_id)) ids.push(r.payment_id);
+  }
+  return ids;
+}
 
 export async function reconcileMiaposPayments(admin: any) {
-  const since = new Date(Date.now() - 2 * 86_400_000).toISOString();
-  const recheck = new Date(Date.now() - 50_000).toISOString();
-  const { data, error } = await admin.from("miapos_payments").select("payment_id")
-    .in("status", ["CREATED", "PENDING"]).eq("environment", miaposEnvironment())
-    .gte("created_at", since).or(`checked_at.is.null,checked_at.lt.${recheck}`)
-    .order("checked_at", { ascending: true, nullsFirst: true }).limit(BATCH);
-  if (error) throw new Error(error.message);
-  const results = await Promise.allSettled((data ?? []).map((r: any) => syncPayment(admin, r.payment_id, TIMEOUT_MS)));
+  const ids = await duePayments(admin);
+  const results = await Promise.allSettled(ids.map((id) => syncPayment(admin, id, TIMEOUT_MS)));
   const failed = results.filter((r) => r.status === "rejected").length;
   if (failed) console.warn(`miaPOS reconcile: ${failed} of ${results.length} checks failed, retried next run`);
   return { checked: results.length, failed };
@@ -526,6 +552,25 @@ export async function listPaymentsForAdmin(admin: any, caller: { isAdmin: boolea
     .filter((p) => !sandbox || own.has(p.paymentId))
     .map((p) => ({ ...p, reviewReason: own.get(p.paymentId) ?? null }));
   return { ...list, payments };
+}
+
+/**
+ * After checking the payment in the miaPOS Merchant Portal (and refunding there if needed), the admin
+ * settles the order. Server code with the service role, like everything that writes orders.
+ */
+export async function resolveReview(admin: any, caller: { isAdmin: boolean }, paymentId: string, orderStatus: "paid" | "unpaid") {
+  if (!caller.isAdmin) throw new Error("Not allowed");
+  const { data: pay, error } = await admin.from("miapos_payments").select("order_id, review_reason").eq("payment_id", paymentId).single();
+  if (error || !pay?.review_reason) throw new Error("Nothing to review for this payment");
+  const { data: order } = await admin.from("orders").select("payment_status").eq("id", pay.order_id).single();
+  if (orderStatus === "unpaid" || order?.payment_status !== "paid") {
+    const { error: e } = await admin.from("orders")
+      .update(orderStatus === "paid" ? { payment_status: "paid", paid_at: new Date().toISOString() } : { payment_status: "unpaid", paid_at: null })
+      .eq("id", pay.order_id);
+    if (e) throw new Error(e.message);
+  }
+  const { error: e2 } = await admin.from("miapos_payments").update({ review_reason: null }).eq("payment_id", paymentId);
+  if (e2) throw new Error(e2.message);
 }
 
 /** Payments a person must look at: a wrong amount, a double payment, a success after a failure. */

@@ -49,14 +49,15 @@ Create the tables with the SQL in `references/lovable-code.md` § Database. The 
 - Status changes go through the database function `miapos_apply_status`. It is idempotent, never changes a final status, never moves a payment back, and marks the order paid only when the amount matches both the payment and the order's current total. What a person must look at (a wrong amount, a double payment, a success after a failure) gets a `review_reason`.
 - Row level security is on for `miapos_payments`, with no policies: only server code with the service role reads or writes it. Buyers see their order's status through a server function, never the table.
 - **The browser never creates orders and never writes `payment_status`, `paid_at` or `total_mdl`.** The app's public database key ships in the browser bundle, so a table policy that lets buyers insert or update their orders would also let them create one for 0.01 MDL or mark one paid. The trigger `orders_guard_payment_fields` rejects that from the browser roles, whatever policies the app has. Keep it, also on an existing orders table.
-- Create orders and their totals in a server function that prices the cart from the database. If the app creates orders from the browser today, move that into a server function first. The amount sent to miaPOS always comes from the database.
+- Create orders and their totals in a server function that prices the cart from the database, with the service-role client: the signed-in user's client is refused like the browser. If the app creates orders from the browser today, move that into a server function first. The amount sent to miaPOS always comes from the database.
+- Limit how often one visitor can create orders, for example per IP address. Each order can lead to a payment at miaPOS.
 
 ## Step 3 — create the payment
 
 A server function `createMiaposPayment({ orderId })`, written from `references/lovable-code.md` § Server module and § Create payment:
 
 1. Load the order. Refuse if it is already paid or its total is not a positive MDL amount. If the app has sign-in, check that the order belongs to the caller.
-2. Reuse the open payment (see Step 2) or call `POST /ecomm/api/v1/pay`. The fields follow **Step 3** of `references/shared/integrate-miapos-checkout.md`: `paymentType: "qr"`, `currency: "MDL"`, `directRedirect: true`, a `payDescription` the payer will recognise, `callbackUrl` = `<app origin>/api/miapos/callback`, and `successUrl` / `failUrl` = the order page. Take the origin on the server from the incoming request, never from a value the browser sends.
+2. Reuse the open payment (see Step 2) or call `POST /ecomm/api/v1/pay`. The fields follow **Step 3** of `references/shared/integrate-miapos-checkout.md`: `paymentType: "qr"`, `currency: "MDL"`, `directRedirect: true`, a `payDescription` the payer will recognise, `callbackUrl` = `<app origin>/api/miapos/callback`, and `successUrl` / `failUrl` = the order page. Take the origin on the server, never from a value the browser sends: from the incoming request in a server function, from an `APP_URL` secret with the published address in an Edge Function.
 3. **Insert the `miapos_payments` row before returning.** No row, no redirect.
 4. Return the oldest open payment of the order: `{ paymentId, checkoutPage, baseUrl }`. Two clicks at once then hand the buyer the same payment. The other one is never opened, and a payment nobody opens cannot be paid.
 
@@ -89,9 +90,9 @@ An API route `POST /api/miapos/callback` (an Edge Function in older apps), from 
 
 Ask Lovable for a **scheduled job every minute** that calls `POST /api/miapos/reconcile`, guarded by the scheduled-job credential (`LOVABLE_CRON_SECRET`, checked with `authenticateCronRequest`). Code: `references/lovable-code.md` § Reconcile.
 
-- Take at most 8 payments still `CREATED` or `PENDING`, created in the last 2 days and not checked in the last 50 s. Call `GET /ecomm/api/v1/payment/{paymentId}` for them in parallel, each with a 4 s timeout, and apply each status.
+- Take at most 8 open payments from the last 2 days, most urgent first: `PENDING` ones, then `CREATED` ones younger than 15 minutes, each not checked in the last 50 s, then older `CREATED` ones not checked in the last 10 minutes. Call `GET /ecomm/api/v1/payment/{paymentId}` for them in parallel, each with a 4 s timeout, and apply each status.
 - The job's call times out after a few seconds, so keep the batch small. A later run picks up the rest.
-- A payment's QR clock starts when the buyer first opens it. One that nobody opened stays `CREATED` and never expires, so the job keeps checking it until the 2-day window ends. That is expected and cheap.
+- A payment's QR clock starts when the buyer first opens it. One that nobody opened stays `CREATED` and never expires. The job keeps checking it, every 10 minutes, until the 2-day window ends, so abandoned carts cannot delay the payments that matter.
 - This job is what keeps a paid order from staying unpaid when a callback never gets through. **It is not optional.**
 - A remix of the project does not copy scheduled jobs. Recreate the job in every copy.
 
@@ -112,7 +113,7 @@ A page `/admin/payments`, behind sign-in, for users with an admin role (a `user_
 - The list answers `{ total, page, size, payments[] }`, and each payment's status is in **`paymentStatus`**, not `status`.
 - **On the sandbox the test merchant is shared**, so the list also holds other developers' test payments. There, show only the payment IDs that are in your own `miapos_payments` table.
 - Show date, order, amount, status, payer bank and `swiftMessageId`. Add a "Check now" button for pending rows that runs the same check as Step 7.
-- Put the payments that need review (`listPaymentsNeedingReview`) at the top, with their reason: a wrong amount, a double payment or a success after a failure.
+- Put the payments that need review (`listPaymentsNeedingReview`) at the top, with their reason: a wrong amount, a double payment or a success after a failure. After checking one in the Merchant Portal, the admin settles the order as paid or unpaid with `resolveReview`.
 - Refunds are not in the API. Point the merchant to the miaPOS Merchant Portal for them.
 
 ## Step 9 — test on the sandbox
