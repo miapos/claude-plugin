@@ -397,7 +397,7 @@ export async function createMiaposPaymentForOrder(admin: any, orderId: string, l
   const returnUrl = `${origin}/order/${order.id}`;
   const p = await createPayment({
     orderId: order.id, amount: total, description: order.description, language,
-    callbackUrl: `${origin}/api/miapos/callback`, returnUrl,
+    callbackUrl: `${origin}/api/public/miapos/callback`, returnUrl,
   });
   const { error: insertError } = await admin.from("miapos_payments").insert({
     payment_id: p.paymentId, order_id: order.id, environment: miaposEnvironment(),
@@ -420,7 +420,7 @@ In the server function around it, log a `MiaposError` with the order id and retu
 ## Callback
 
 ```ts
-// file: API route POST /api/miapos/callback  (Edge Function in older apps, with JWT verification off)
+// file: API route POST /api/public/miapos/callback  (Edge Function in older apps, with JWT verification off)
 import { isPaymentId, isValidCallbackSignature, type MiaposPayment } from "./miapos.server";
 import { applyStatus } from "./miapos-orders.server";
 
@@ -463,7 +463,7 @@ export async function handleMiaposCallback(request: Request, admin: any): Promis
 ## Reconcile
 
 ```ts
-// file: API route POST /api/miapos/reconcile, called by a scheduled job every minute.
+// file: API route POST /api/public/miapos/reconcile, called by a scheduled job every minute.
 // Lovable adds authenticateCronRequest(request) with LOVABLE_CRON_SECRET: reject anything else first.
 import { miaposEnvironment } from "./miapos.server";
 import { syncPayment } from "./miapos-orders.server";

@@ -14,8 +14,8 @@ browser ── "Pay" ──▶ server fn createMiaposPayment ──POST /pay─�
                      (amount from the database, row in miapos_payments)
 browser ◀── paymentId, checkoutPage, baseUrl
 browser: miaPOS widget on the page (QR, bank list), or redirect to checkoutPage
-miaPOS ──signed callback, retried until 2xx──▶ API route /api/miapos/callback
-job every minute ──▶ API route /api/miapos/reconcile ──GET /payment/{id}──▶ miaPOS
+miaPOS ──signed callback, retried until 2xx──▶ API route /api/public/miapos/callback
+job every minute ──▶ API route /api/public/miapos/reconcile ──GET /payment/{id}──▶ miaPOS
 order page ──▶ server fn getOrderPayment ──GET /payment/{id}──▶ miaPOS     ← source of truth
 ```
 
@@ -27,7 +27,7 @@ If the user asked for payments without naming a provider and is not in Moldova, 
 
 ## Step 1 — secrets and environment
 
-Ask for four project secrets with the **Add secret** form. Never ask the user to paste them in the chat, and never write them into code, migrations, logs or the browser bundle.
+Ask for four project secrets with the **Add secret** form. Never ask the user to paste them in the chat, and never write them into code, migrations, logs or the browser bundle. The sandbox values below are public, so you may set them yourself. A production key is entered only by the merchant, in the Add secret form; never set one from a value typed in the chat.
 
 | Secret | Sandbox value | Production value |
 |---|---|---|
@@ -57,7 +57,7 @@ Create the tables with the SQL in `references/lovable-code.md` § Database. The 
 A server function `createMiaposPayment({ orderId })`, written from `references/lovable-code.md` § Server module and § Create payment:
 
 1. Load the order. Refuse if it is already paid or its total is not a positive MDL amount. If the app has sign-in, check that the order belongs to the caller.
-2. Reuse the open payment (see Step 2) or call `POST /ecomm/api/v1/pay`. The fields follow **Step 3** of `references/shared/integrate-miapos-checkout.md`: `paymentType: "qr"`, `currency: "MDL"`, `directRedirect: true`, a `payDescription` the payer will recognise, `callbackUrl` = `<app origin>/api/miapos/callback`, and `successUrl` / `failUrl` = the order page. Take the origin on the server, never from a value the browser sends: from the incoming request in a server function, from an `APP_URL` secret with the published address in an Edge Function.
+2. Reuse the open payment (see Step 2) or call `POST /ecomm/api/v1/pay`. The fields follow **Step 3** of `references/shared/integrate-miapos-checkout.md`: `paymentType: "qr"`, `currency: "MDL"`, `directRedirect: true`, a `payDescription` the payer will recognise, `callbackUrl` = `<app origin>/api/public/miapos/callback`, and `successUrl` / `failUrl` = the order page. Take the origin on the server, never from a value the browser sends: from the incoming request in a server function, from an `APP_URL` secret with the published address in an Edge Function.
 3. **Insert the `miapos_payments` row before returning.** No row, no redirect.
 4. Return the oldest open payment of the order: `{ paymentId, checkoutPage, baseUrl }`. Two clicks at once then hand the buyer the same payment. The other one is never opened, and a payment nobody opens cannot be paid.
 
@@ -78,7 +78,7 @@ Redirecting to `checkoutPage` right away, without the widget, is a valid simpler
 
 ## Step 5 — callback route
 
-An API route `POST /api/miapos/callback` (an Edge Function in older apps), from `references/lovable-code.md` § Callback. The signature algorithm and its pitfalls are in `references/shared/verify-miapos-callback.md`. Follow it exactly.
+An API route `POST /api/public/miapos/callback` (an Edge Function in older apps). Lovable keeps routes that outside services call under `/api/public/`. The code is in `references/lovable-code.md` § Callback. The signature algorithm and its pitfalls are in `references/shared/verify-miapos-callback.md`. Follow it exactly.
 
 - No sign-in, no CSRF check: miaPOS calls it server to server. The signature is the only proof, so verify it before anything else. Invalid → **400**.
 - The public key comes from `GET /ecomm/api/v1/public-key` with a Bearer token, once per base URL, cached. On a failed check, fetch it again before rejecting, at most once every 5 minutes: anyone can post a bad signature. If the key cannot be fetched at all, answer **503** so miaPOS tries again later.
@@ -88,7 +88,7 @@ An API route `POST /api/miapos/callback` (an Edge Function in older apps), from 
 
 ## Step 6 — reconciliation job
 
-Ask Lovable for a **scheduled job every minute** that calls `POST /api/miapos/reconcile`, guarded by the scheduled-job credential (`LOVABLE_CRON_SECRET`, checked with `authenticateCronRequest`). Code: `references/lovable-code.md` § Reconcile.
+Ask Lovable for a **scheduled job every minute** that calls `POST /api/public/miapos/reconcile`, guarded by the scheduled-job credential (`LOVABLE_CRON_SECRET`, checked with `authenticateCronRequest`). Code: `references/lovable-code.md` § Reconcile.
 
 - Take at most 8 open payments from the last 2 days, most urgent first: `PENDING` ones, then `CREATED` ones younger than 15 minutes, each not checked in the last 50 s, then older `CREATED` ones not checked in the last 10 minutes. Call `GET /ecomm/api/v1/payment/{paymentId}` for them in parallel, each with a 4 s timeout, and apply each status.
 - The job's call times out after a few seconds, so keep the batch small. A later run picks up the rest.
@@ -127,6 +127,7 @@ The sandbox pays a payment by itself once the widget shows its QR, or once the c
 | open the order page while the payment is still `CREATED` | the order is not paid |
 | click "Pay" twice at once | both clicks show the same payment |
 | replay the same callback body | answered 200, order paid once |
+| `GET` on the callback route | not handled by it: the route takes `POST` only |
 | callback with a changed `amount` | 400, nothing changes |
 | browser client sets `payment_status = 'paid'` on an order, or inserts an order | rejected by the database |
 | leave checkout without opening the payment, come back later | not paid; "Pay" reuses the same payment |

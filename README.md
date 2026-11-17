@@ -30,7 +30,8 @@ The skill `miapos-lovable-checkout` teaches Lovable to add miaPOS checkout to an
 1. In Lovable, open **Account settings → Personal skills → Import skills** (or, as a workspace admin, **Workspace settings → Skills → Add → Import from GitHub**) and paste:
    `https://github.com/miapos/claude-plugin/tree/main/skills/miapos-lovable-checkout`
 2. Optional: add `https://mcp.miapos.eu/mcp` as a custom MCP chat connector, with no authentication. Lovable can then look up the API and check callback signatures while it builds.
-3. Ask: "Add payment with miaPOS to my app." Lovable asks for four secrets through its **Add secret** form.
+3. Ask: "Add payment with miaPOS to my app." Lovable stores four secrets. On the test environment it can set the public test values itself; production values go only through its **Add secret** form. It is a large change: on Lovable's Free plan it used up a day's credits.
+4. Publish the app, then pay a test order. miaPOS cannot reach the editor preview, so callbacks arrive only at the published address.
 
 ## What's inside
 
