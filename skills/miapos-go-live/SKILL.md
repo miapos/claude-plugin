@@ -29,7 +29,8 @@ Review the user's integration against this list. Read their code; do not assume.
 - 🔴 The signature is verified exactly as in skill **verify-miapos-callback**: sorted keys, `;`-joined values, `amount` with 2 decimals, RSA-SHA256. Invalid → 400.
 - 🔴 The order is looked up by `paymentId`, and `amount` + `currency` are checked against it.
 - 🔴 Processing is idempotent: a replayed callback does not fulfil twice, and a final status is never downgraded.
-- The handler answers 2xx quickly. miaPOS sends **once** with a 60 s timeout and never retries.
+- The handler answers 2xx quickly, within the 60 s timeout. On a non-2xx answer or a timeout miaPOS retries up to 9 times over about 45 h with the same body. A handler that keeps failing is noticed only after two days, by the buyer.
+- A repeated callback for an order already applied is answered 200, not 4xx or 5xx.
 - The endpoint is publicly reachable, has no auth wall or CSRF check, and accepts `application/json` POST.
 
 ## 4. Return URLs and reconciliation
@@ -49,7 +50,7 @@ Ask for evidence of each, or run them with the miaPOS MCP `sandbox_*` tools:
 | normal payment | order paid once, `SUCCESS` |
 | buyer abandons checkout | `EXPIRED` after the QR TTL (about 5 min), order not paid |
 | success page opened while still unpaid | order stays unpaid |
-| same callback delivered twice | fulfilled once |
+| same callback delivered twice | fulfilled once, both answered 200 |
 | callback with altered `amount` | rejected (400) |
 | callback never delivered | reconciliation job marks the order paid |
 | phone checkout with `directRedirect` | bank app opens without a QR scan |

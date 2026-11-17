@@ -1,6 +1,6 @@
 # miaPOS e-commerce API — reference
 
-Everything here was observed against the live sandbox `https://ecomm-test.miapos.md` on 05.10.2026. Production behaves the same; only the base URL and credentials differ, one set per bank.
+Everything here was observed against the live sandbox `https://ecomm-test.miapos.md` on 05.10.2026. Callback delivery was rechecked on 17.11.2026. Production behaves the same; only the base URL and credentials differ, one set per bank.
 
 All requests and responses are JSON (`Content-Type: application/json`). Authenticated calls send `Authorization: Bearer <accessToken>`.
 
@@ -28,7 +28,7 @@ Request: `{"refreshToken": "…"}` → same shape as `/token`.
 | `payDescription` | string | yes | shown to the payer in the banking app |
 | `paymentType` | string | no | `qr` (default). `rtp` needs a separate RTP terminal and is out of scope here |
 | `language` | string | no | checkout page language: `ro`, `ru`, `en` |
-| `callbackUrl` | string | no* | where the signed result is POSTed **once** |
+| `callbackUrl` | string | no* | where the signed result is POSTed when the payment is final. Retried until a 2xx answer, up to 9 attempts |
 | `successUrl` / `failUrl` | string | no* | browser redirect targets, used **as-is** with nothing appended |
 | `directRedirect` | boolean | no | QR only. `true`: on phones the checkout page jumps straight into the banking app. Recommended |
 | `fastRedirect` | boolean | no | skip the pause on the result screen |
@@ -73,7 +73,10 @@ Bearer required (401 without it). Response: `{"publicKey":"MIIBIjANBgkq…"}`, a
 }
 ```
 
-- Sent **once**, with a 60 s timeout. A non-2xx answer is logged on the miaPOS side and **not retried**.
+- Sent when the payment reaches a final status (`SUCCESS`, `FAILED`, `DECLINED`, `EXPIRED`).
+- **Delivery:** any 2xx answer ends it. A non-2xx answer, a network error or no answer within 60 s is retried, up to 9 attempts in total. The gaps are 30 s, 2 min, 10 min, 30 min, 2 h, 6 h, 12 h and 24 h, about 45 h end to end. After the 9th failure miaPOS stops, and the payment is left for manual review on its side.
+- **Every retry carries the same bytes and the same signature** as the first attempt. Treat a repeat as a duplicate, not as a new event.
+- Retries do not replace polling: `GET /payment/{paymentId}` stays the source of truth.
 - Fields that are null are omitted.
 - How to verify the signature: skill **verify-miapos-callback**.
 

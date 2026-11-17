@@ -13,7 +13,7 @@ The flow is always the same, whatever the stack:
 your backend ──POST /ecomm/api/v1/token──▶ accessToken (5 min)
 your backend ──POST /ecomm/api/v1/pay────▶ { paymentId, checkoutPage }
 buyer's browser ──redirect──▶ checkoutPage  (QR / bank-app jump)
-miaPOS ──POST callbackUrl (signed, ONE attempt)──▶ your backend
+miaPOS ──POST callbackUrl (signed, retried until 2xx)──▶ your backend
 buyer's browser ◀──redirect── successUrl / failUrl
 your backend ──GET /ecomm/api/v1/payment/{paymentId}──▶ final status   ← the source of truth
 ```
@@ -60,11 +60,12 @@ Read `references/api.md` for exact fields and errors and `references/examples.md
    - Put your own order reference into `successUrl` / `failUrl` (e.g. `?order=123`). miaPOS redirects to them **as-is** and appends nothing.
    - Do not send `clientPhone`: it is deprecated.
 3. **Redirect** the buyer to `checkoutPage`.
-4. **Callback.** miaPOS POSTs `{result, signature}` to `callbackUrl` **once, with no retries**. A non-2xx answer or a timeout (60 s) loses that notification.
+4. **Callback.** miaPOS POSTs `{result, signature}` to `callbackUrl` when the payment reaches a final status. Any 2xx answer ends delivery. A non-2xx answer, a network error or no answer within 60 s is retried: up to 9 attempts in total, 30 s, 2 min, 10 min, 30 min, 2 h, 6 h, 12 h and 24 h apart (about 45 h). Every retry carries the same bytes and the same signature as the first attempt. After the 9th failure miaPOS stops trying.
    - Verify the signature before trusting it (skill **verify-miapos-callback**).
-   - Answer 200 fast and process idempotently.
+   - Answer 200 fast and process idempotently: the same callback can arrive more than once, and a retry can arrive hours after your status poll already settled the order.
+   - Reject a callback with a bad signature (400), but never answer non-2xx for a callback you have already applied. Otherwise miaPOS keeps resending it for two days.
 5. **Return URLs.** When the buyer lands on `successUrl` or `failUrl`, **always call `GET /ecomm/api/v1/payment/{paymentId}`**. Never mark an order paid just because the browser reached `successUrl`.
-6. **Reconcile.** Because the callback is single-shot, run a job every 1–2 min for orders whose payment is `CREATED` or `PENDING`. Poll the status until it is final. The QR lives about 5 min by default (a per-terminal setting), after that `EXPIRED`.
+6. **Reconcile.** Retries do not make the callback a source of truth. Your endpoint can be down for longer than the retry window, misconfigured or behind a firewall. After the last attempt nothing more arrives, and the order stays unpaid although the buyer has paid. So run a job every 1–2 min for orders whose payment is `CREATED` or `PENDING`, and poll the status until it is final. The QR lives about 5 min by default (a per-terminal setting), after that `EXPIRED`.
 
 ### Statuses
 
@@ -102,7 +103,7 @@ Test at least these cases:
 - one successful payment;
 - one abandoned payment that reaches `EXPIRED` after the TTL;
 - the success page reached with an unpaid payment, which must **not** mark the order paid;
-- a replayed callback, which must be processed once;
+- a replayed callback, which must be processed once and still answered 200;
 - a callback with a tampered amount, which must be rejected.
 
 ## Step 5 — before going live
