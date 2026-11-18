@@ -2,7 +2,7 @@
 
 # miaPOS e-commerce API — reference
 
-Everything here was observed against the live sandbox `https://ecomm-test.miapos.md` on 05.10.2026. Callback delivery was rechecked on 17.11.2026. Production behaves the same; only the base URL and credentials differ, one set per bank.
+Everything here was observed against the live sandbox `https://ecomm-test.miapos.md` on 05.10.2026. Callback delivery was rechecked on 17.11.2026; the payment list, the buyer step and the default return address on 18.11.2026. Production behaves the same; only the base URL and credentials differ, one set per bank.
 
 All requests and responses are JSON (`Content-Type: application/json`). Authenticated calls send `Authorization: Bearer <accessToken>`.
 
@@ -37,7 +37,7 @@ Request: `{"refreshToken": "…"}` → same shape as `/token`.
 | `clientName`, `clientEmail` | string | no | optional payer details |
 | `clientPhone` | string | — | **deprecated**, do not send |
 
-\* If omitted, the terminal's default URLs configured at onboarding are used. Send them explicitly.
+\* If omitted, the terminal's default URLs configured at onboarding are used: the callback goes to the terminal's default address, not to you, and the result page's "Back to shop" goes to the terminal's address (on the shared test merchant, `https://finergy.md`). Send them explicitly whenever you have a server. Without one, leave `callbackUrl` out and poll.
 
 Response 200:
 ```json
@@ -56,6 +56,44 @@ Response 200 is a flat object with **no signature**:
 
 - `swiftMessageId` and `swiftPayerBank` appear once the payment succeeds.
 - `paymentDate` is Chișinău local time **without offset**.
+- `amount` is a JSON number: a payment created with `170.00` returns `170`. Compare amounts numerically, never as strings.
+
+## GET /ecomm/api/v1/payments
+
+The merchant's payments, newest first. Bearer required.
+
+| Query parameter | Notes |
+|---|---|
+| `terminalId` | optional; without it, all terminals of the merchant |
+| `page` | 0-based |
+| `size` | 1–100. A larger value returns HTTP 500 |
+| `paymentStatus` | optional: `CREATED`, `PENDING`, `SUCCESS`, `FAILED`, `DECLINED`, `EXPIRED` |
+| `dateFrom`, `dateTo` | optional, local date-time `2026-11-18T00:00:00`. A bare date returns 400 |
+
+There is no `orderId` filter: an unknown parameter is ignored and the whole list comes back. To find an order's payments, filter by date and match `orderId` yourself, or better, keep the `paymentId`.
+
+Response 200:
+```json
+{"total":1231,"page":0,"size":2,"payments":[
+  {"paymentId":"4f6f1d34-…","orderId":"order-123","terminalId":"TE0001","amount":170,"currency":"MDL",
+   "payDescription":"…","paymentType":"qr","createdAt":"2026-11-18T20:13:10","paymentDate":"2026-11-18T20:13:22",
+   "swiftMessageId":"…","swiftPayerBank":"…","paymentStatus":"SUCCESS"}]}
+```
+
+Here the status field is `paymentStatus`, not `status` as in `GET /payment/{paymentId}`.
+
+## The buyer step (sandbox)
+
+The checkout page starts the payment with a form POST to `/checkout` carrying `paymentId`. Sending the same POST from a script plays the buyer in the sandbox:
+
+```bash
+curl -d "paymentId=<paymentId>" https://ecomm-test.miapos.md/checkout
+```
+
+- Answer: HTTP 200, an HTML "processing" page that resubmits itself every 10 s. Nothing in it needs parsing.
+- Status: `PENDING` after about 2–5 s, `SUCCESS` after about 10–12 s. Poll `GET /payment/{paymentId}` for it.
+- Once the payment is final, the page shows the result and after 10 s sends the browser to `successUrl` / `failUrl`, or to the terminal's default address if they were omitted.
+- A plain GET of `checkoutPage` only loads the page and never starts the payment.
 
 ## GET /ecomm/api/v1/public-key
 

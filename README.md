@@ -22,6 +22,7 @@ Then just ask, for example:
 - "Set up the miaPOS WooCommerce module and test a payment in the sandbox."
 - "Why does my miaPOS callback signature check fail?"
 - "Review my miaPOS integration before we go live."
+- "Take a test payment of 170 MDL for an order and tell me when the money has arrived." (no website needed)
 
 ## Use it in Lovable
 
@@ -39,7 +40,7 @@ The skill `miapos-lovable-checkout` teaches Lovable to add miaPOS checkout to an
 
 | Skill | Use it for |
 |---|---|
-| `integrate-miapos-checkout` | Choose a ready module (WooCommerce, OpenCart, CS-Cart), the PHP SDK or the HTTP API, then implement token → payment → redirect → callback → status → reconciliation |
+| `integrate-miapos-checkout` | Choose a ready module (WooCommerce, OpenCart, CS-Cart), the PHP SDK or the HTTP API, then implement token → payment → redirect → callback → status → reconciliation. Also: take one payment without a website, by sending the buyer a link and polling the status |
 | `verify-miapos-callback` | The exact signature algorithm, a real test vector, and handlers in Node.js, Python and PHP |
 | `miapos-go-live` | Pre-launch audit of an integration: credentials, idempotency, reconciliation, test evidence |
 | `miapos-lovable-checkout` | The same checkout in a Lovable app: secrets, payments table, server functions, the checkout widget, callback route, scheduled reconciliation, admin page. Its `references/shared/` is generated from the three skills above by `scripts/sync-shared.mjs` |
@@ -58,11 +59,11 @@ The skill `miapos-lovable-checkout` teaches Lovable to add miaPOS checkout to an
 
 ## Ready modules and SDK
 
-- WooCommerce: [miapos/mia-pay-gateway-for-woocommerce](https://github.com/miapos/mia-pay-gateway-for-woocommerce)
-- OpenCart 3: [miapos/mia-pay-gateway-for-opencart](https://github.com/miapos/mia-pay-gateway-for-opencart)
-- CS-Cart: [miapos/mia-pay-gateway-for-cscart](https://github.com/miapos/mia-pay-gateway-for-cscart)
-- PHP SDK: `composer require miapos/mia-pos-sdk` · [miapos/mia-pay-ecomm-php-sdk](https://github.com/miapos/mia-pay-ecomm-php-sdk)
-- Protocol docs: [miapos/mia-pay-ecomm-integration](https://github.com/miapos/mia-pay-ecomm-integration)
+- WooCommerce: [finergy-tech/mia-pay-gateway-for-woocommerce](https://github.com/finergy-tech/mia-pay-gateway-for-woocommerce)
+- OpenCart 3: [finergy-tech/mia-pay-gateway-for-opencart](https://github.com/finergy-tech/mia-pay-gateway-for-opencart)
+- CS-Cart: [finergy-tech/mia-pay-gateway-for-cscart](https://github.com/finergy-tech/mia-pay-gateway-for-cscart)
+- PHP SDK: `composer require finergy/mia-pos-sdk` · [finergy-tech/mia-pay-ecomm-php-sdk](https://github.com/finergy-tech/mia-pay-ecomm-php-sdk)
+- Protocol docs: [finergy-tech/mia-pay-ecomm-integration](https://github.com/finergy-tech/mia-pay-ecomm-integration)
 
 ## Privacy
 

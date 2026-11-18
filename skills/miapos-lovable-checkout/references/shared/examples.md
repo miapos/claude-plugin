@@ -108,10 +108,83 @@ def get_payment(payment_id: str) -> dict:
 FINAL = {"SUCCESS", "FAILED", "DECLINED", "EXPIRED"}
 ```
 
+## One payment without a website (Node.js 18+, no dependencies)
+
+For a seller with no shop and no server, or an AI agent taking one payment: create the payment, hand the buyer the link, poll until the status is final. No callback. The `paymentId` is saved next to the script, so a rerun keeps polling the same payment instead of charging the buyer twice.
+
+```js
+// pay-once.mjs   node pay-once.mjs <orderId> <amountMdl> "<what the buyer pays for>"
+// Use a new orderId for every sale. A rerun with the same orderId keeps checking the same payment.
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+
+for (const v of ["MIAPOS_BASE_URL", "MIAPOS_MERCHANT_ID", "MIAPOS_SECRET_KEY", "MIAPOS_TERMINAL_ID"])
+  if (!process.env[v]) throw new Error(`set ${v}`);
+const BASE = process.env.MIAPOS_BASE_URL;
+const FINAL = new Set(["SUCCESS", "FAILED", "DECLINED", "EXPIRED"]);
+const [orderId, amountArg, description] = process.argv.slice(2);
+const amount = Number(Number(amountArg).toFixed(2));
+if (!orderId || !(amount > 0) || !description) throw new Error("usage: <orderId> <amountMdl> <description>");
+const saved = `.miapos-${encodeURIComponent(orderId)}.json`;  // this order's payment, so a rerun never creates a second one
+
+let cached = null;
+async function token() {
+  if (cached && Date.now() < cached.exp) return cached.value;
+  const t = await request("/ecomm/api/v1/token",
+    { merchantId: process.env.MIAPOS_MERCHANT_ID, secretKey: process.env.MIAPOS_SECRET_KEY }, false);
+  cached = { value: t.accessToken, exp: Date.now() + (t.accessTokenExpiresIn - 30) * 1000 };  // lasts 300 s
+  return cached.value;
+}
+
+async function request(path, body, auth = true) {
+  const headers = { "Content-Type": "application/json" };
+  if (auth) headers.Authorization = `Bearer ${await token()}`;
+  const res = await fetch(BASE + path, { method: body ? "POST" : "GET", headers,
+    body: body && JSON.stringify(body), signal: AbortSignal.timeout(30_000) });
+  const text = await res.text();
+  if (res.status === 401) cached = null;  // the next call gets a fresh token
+  if (!res.ok) throw new Error(`miaPOS ${res.status}: ${text}`);
+  return JSON.parse(text);
+}
+
+const getPayment = (id) => request(`/ecomm/api/v1/payment/${encodeURIComponent(id)}`);
+
+// Reuse this order's saved payment unless it already ended unpaid.
+let payment = existsSync(saved) ? JSON.parse(readFileSync(saved, "utf8")) : null;
+if (payment && payment.amount !== amount)
+  throw new Error(`order ${orderId} already has a payment of ${payment.amount} MDL: use a new orderId`);
+let s = payment && (await getPayment(payment.paymentId));
+if (s && s.status !== "SUCCESS" && FINAL.has(s.status)) payment = s = null;
+if (!payment) {
+  const p = await request("/ecomm/api/v1/pay", {
+    terminalId: process.env.MIAPOS_TERMINAL_ID, orderId, amount, currency: "MDL",
+    payDescription: description, paymentType: "qr", language: "ro", directRedirect: true,
+    // no callbackUrl: nothing public to receive it, so the loop below polls
+  });
+  payment = { orderId, amount, paymentId: p.paymentId, checkoutPage: p.checkoutPage };
+  writeFileSync(saved, JSON.stringify(payment));
+}
+if (!s || !FINAL.has(s.status)) console.log(`Send the buyer this link: ${payment.checkoutPage}`);
+
+const deadline = Date.now() + 6 * 60_000;  // the QR lives about 5 minutes
+while (!(s && FINAL.has(s.status)) && Date.now() < deadline) {
+  await new Promise((r) => setTimeout(r, 5_000));
+  try { s = await getPayment(payment.paymentId); }
+  catch (e) { console.error(`Status check failed, trying again: ${e.message}`); }
+}
+
+const amountOk = s?.currency === "MDL" && Math.round(s.amount * 100) === Math.round(amount * 100);  // 170, not 170.00
+if (s?.status === "SUCCESS" && amountOk) console.log(`Paid: ${s.amount} MDL at ${s.paymentDate}`);
+else if (s?.status === "SUCCESS") console.log(`Paid ${s.amount} ${s.currency}, expected ${amount} MDL: check by hand`);
+else if (s && FINAL.has(s.status)) console.log(`Not paid: ${s.status}`);
+else console.log(`Still ${s?.status ?? "unknown"}: run again later to keep checking, it will not create a new payment`);
+```
+
+In the sandbox, set the four variables to the test values in the skill's Step 2, run the script, and play the buyer from a second terminal: `curl -d "paymentId=<paymentId>" https://ecomm-test.miapos.md/checkout`. The script prints `Paid` about 10 s later.
+
 ## PHP (SDK)
 
 ```php
-// composer require miapos/mia-pos-sdk
+// composer require finergy/mia-pos-sdk
 use Finergy\MiaPosSdk\MiaPosSdk;
 
 $sdk = MiaPosSdk::getInstance(getenv('MIAPOS_BASE_URL'), getenv('MIAPOS_MERCHANT_ID'), getenv('MIAPOS_SECRET_KEY'));
