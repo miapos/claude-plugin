@@ -36,7 +36,7 @@ Ask for four project secrets with the **Add secret** form. Never ask the user to
 | `MIAPOS_SECRET_KEY` | the test merchant's key, published in the miaPOS PHP SDK example: https://github.com/finergy-tech/mia-pay-ecomm-php-sdk/blob/main/examples/create_payment.php | issued at onboarding |
 | `MIAPOS_TERMINAL_ID` | `TE0001` | the merchant's e-commerce terminal |
 
-- **Start on the sandbox.** No real money moves there, and the sandbox pays every test payment by itself.
+- **Start on the sandbox.** No real money moves there: once a test payment is started on its checkout page, the sandbox completes it by itself.
 - Never guess a production base URL. Each bank runs its own host, its own credentials and its own callback signing key.
 - Read the secrets only in server code (server functions and API routes, or Edge Functions in older React + Vite apps). The browser gets nothing but the `paymentId`, the `checkoutPage` and the base URL that a payment response returns.
 
@@ -102,7 +102,7 @@ The order page (`successUrl` and `failUrl` point here) calls a server function `
 
 **Reaching this page proves nothing.** Never mark an order paid from the URL, a query parameter, local storage or the widget's `onSuccess`.
 
-While the app runs on the sandbox, `testMode` is true: show "Test payment, no real money" on the order page and on the admin page, and do not fulfil those orders. Anyone can pay a sandbox order, because the sandbox pays by itself.
+While the app runs on the sandbox, `testMode` is true: show "Test payment, no real money" on the order page and on the admin page, and do not fulfil those orders. Anyone can pay a sandbox order, because the sandbox completes every started test payment by itself.
 
 Map the statuses as in **Statuses** of `references/shared/integrate-miapos-checkout.md`. On `FAILED`, `DECLINED` and `EXPIRED`, offer "Try again", which calls `createMiaposPayment` again.
 
