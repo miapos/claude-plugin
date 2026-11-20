@@ -184,7 +184,9 @@ In the sandbox, set the four variables to the test values in the skill's Step 2,
 ## PHP (SDK)
 
 ```php
-// composer require finergy/mia-pos-sdk
+// Install from GitHub:
+//   composer config repositories.miapos vcs https://github.com/miapos/mia-pay-ecomm-php-sdk
+//   composer require miapos/mia-pos-sdk
 use Finergy\MiaPosSdk\MiaPosSdk;
 
 $sdk = MiaPosSdk::getInstance(getenv('MIAPOS_BASE_URL'), getenv('MIAPOS_MERCHANT_ID'), getenv('MIAPOS_SECRET_KEY'));

@@ -28,10 +28,10 @@ your backend ──GET /ecomm/api/v1/payment/{paymentId}──▶ final status  
 
 | The shop runs on | Use | Where |
 |---|---|---|
-| WooCommerce | ready module | https://github.com/finergy-tech/mia-pay-gateway-for-woocommerce |
-| OpenCart 3 | ready module | https://github.com/finergy-tech/mia-pay-gateway-for-opencart |
-| CS-Cart | ready module | https://github.com/finergy-tech/mia-pay-gateway-for-cscart |
-| Any PHP | SDK | `composer require finergy/mia-pos-sdk` — https://github.com/finergy-tech/mia-pay-ecomm-php-sdk |
+| WooCommerce | ready module | https://github.com/miapos/mia-pay-gateway-for-woocommerce |
+| OpenCart 3 | ready module | https://github.com/miapos/mia-pay-gateway-for-opencart |
+| CS-Cart | ready module | https://github.com/miapos/mia-pay-gateway-for-cscart |
+| Any PHP | SDK, installed from GitHub | `composer config repositories.miapos vcs https://github.com/miapos/mia-pay-ecomm-php-sdk`, then `composer require miapos/mia-pos-sdk` |
 | Anything else (Node, Python, Go, Java, .NET, Laravel without the SDK…) | HTTP API directly | `references/api.md`, `references/examples.md` |
 | No website: a seller in a chat, or an AI agent taking one payment | payment link + status polling | **One payment without a website** below |
 
@@ -44,7 +44,7 @@ With a ready module the work is configuration: merchant ID, secret key, terminal
 | Base URL | `https://ecomm-test.miapos.md` | given by the merchant's bank / miaPOS at onboarding (one per bank) |
 | Merchant ID | `128` (shared public test merchant) | issued at onboarding |
 | Terminal ID | `TE0001` | the merchant's e-commerce terminal |
-| Secret key | the test merchant's key, published in the PHP SDK example: https://github.com/finergy-tech/mia-pay-ecomm-php-sdk/blob/main/examples/create_payment.php | issued at onboarding |
+| Secret key | the test merchant's key, published in the PHP SDK example: https://github.com/miapos/mia-pay-ecomm-php-sdk/blob/main/examples/create_payment.php | issued at onboarding |
 | Money | none. Once the buyer step starts a test payment (Step 4), the sandbox completes it by itself | real |
 
 With the miaPOS MCP server connected, its `sandbox_*` tools need no credentials at all.
