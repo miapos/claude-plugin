@@ -59,11 +59,11 @@ The skill `miapos-lovable-checkout` teaches Lovable to add miaPOS checkout to an
 
 ## Ready modules and SDK
 
-- WooCommerce: [finergy-tech/mia-pay-gateway-for-woocommerce](https://github.com/finergy-tech/mia-pay-gateway-for-woocommerce)
-- OpenCart 3: [finergy-tech/mia-pay-gateway-for-opencart](https://github.com/finergy-tech/mia-pay-gateway-for-opencart)
-- CS-Cart: [finergy-tech/mia-pay-gateway-for-cscart](https://github.com/finergy-tech/mia-pay-gateway-for-cscart)
-- PHP SDK: `composer require finergy/mia-pos-sdk` · [finergy-tech/mia-pay-ecomm-php-sdk](https://github.com/finergy-tech/mia-pay-ecomm-php-sdk)
-- Protocol docs: [finergy-tech/mia-pay-ecomm-integration](https://github.com/finergy-tech/mia-pay-ecomm-integration)
+- WooCommerce: [miapos/mia-pay-gateway-for-woocommerce](https://github.com/miapos/mia-pay-gateway-for-woocommerce)
+- OpenCart 3: [miapos/mia-pay-gateway-for-opencart](https://github.com/miapos/mia-pay-gateway-for-opencart)
+- CS-Cart: [miapos/mia-pay-gateway-for-cscart](https://github.com/miapos/mia-pay-gateway-for-cscart)
+- PHP SDK: `composer require miapos/mia-pos-sdk` · [miapos/mia-pay-ecomm-php-sdk](https://github.com/miapos/mia-pay-ecomm-php-sdk)
+- Protocol docs: [miapos/mia-pay-ecomm-integration](https://github.com/miapos/mia-pay-ecomm-integration)
 
 ## Privacy
 

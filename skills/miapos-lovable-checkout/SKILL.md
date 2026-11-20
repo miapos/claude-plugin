@@ -33,7 +33,7 @@ Ask for four project secrets with the **Add secret** form. Never ask the user to
 |---|---|---|
 | `MIAPOS_BASE_URL` | `https://ecomm-test.miapos.md` | the e-commerce address of the merchant's bank, given at onboarding |
 | `MIAPOS_MERCHANT_ID` | `128` (shared test merchant) | issued at onboarding |
-| `MIAPOS_SECRET_KEY` | the test merchant's key, published in the miaPOS PHP SDK example: https://github.com/finergy-tech/mia-pay-ecomm-php-sdk/blob/main/examples/create_payment.php | issued at onboarding |
+| `MIAPOS_SECRET_KEY` | the test merchant's key, published in the miaPOS PHP SDK example: https://github.com/miapos/mia-pay-ecomm-php-sdk/blob/main/examples/create_payment.php | issued at onboarding |
 | `MIAPOS_TERMINAL_ID` | `TE0001` | the merchant's e-commerce terminal |
 
 - **Start on the sandbox.** No real money moves there: once a test payment is started on its checkout page, the sandbox completes it by itself.
