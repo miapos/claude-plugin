@@ -31,7 +31,7 @@ your backend ──GET /ecomm/api/v1/payment/{paymentId}──▶ final status  
 | WooCommerce | ready module | https://github.com/miapos/mia-pay-gateway-for-woocommerce |
 | OpenCart 3 | ready module | https://github.com/miapos/mia-pay-gateway-for-opencart |
 | CS-Cart | ready module | https://github.com/miapos/mia-pay-gateway-for-cscart |
-| Any PHP | SDK | `composer require miapos/mia-pos-sdk` — https://github.com/miapos/mia-pay-ecomm-php-sdk |
+| Any PHP | SDK, installed from GitHub | `composer config repositories.miapos vcs https://github.com/miapos/mia-pay-ecomm-php-sdk`, then `composer require miapos/mia-pos-sdk` |
 | Anything else (Node, Python, Go, Java, .NET, Laravel without the SDK…) | HTTP API directly | `references/api.md`, `references/examples.md` |
 | No website: a seller in a chat, or an AI agent taking one payment | payment link + status polling | **One payment without a website** below |
 
